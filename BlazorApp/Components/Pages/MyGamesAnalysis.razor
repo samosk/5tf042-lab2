@@ -1,0 +1,319 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using YourApp.Models
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthState
+@inject MashupService Mashup
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">My Game Library</h3>
+        @if (isAuthenticated)
+        {
+            <a href="/auth/logout" class="btn btn-outline-secondary btn-sm">
+                Sign out
+            </a>
+        }
+    </div>
+
+    @if (!isAuthenticated)
+    {
+        <div class="alert alert-info">
+            <p class="mb-2">Sign in with Steam to analyze your library.</p>
+            <a href="/auth/login" class="btn btn-dark">
+                Sign in with Steam
+            </a>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted">Analyzing your library... this may take a moment.</p>
+        </div>
+    }
+    else if (error is not null)
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+    else
+    {
+        <!-- DASHBOARD CARDS -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Games</h6>
+                        <h2 class="card-title mb-1">@stats.TotalGames</h2>
+                        <small class="text-muted">@stats.TotalPlaytimeHours hours played</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Average Quality</h6>
+                        <h2 class="card-title mb-1">@stats.AverageRating / 5</h2>
+                        <small class="text-muted">Across rated games</small>
+                    </div>
+                </div>
+            </div>
+                        <div class="col-md-3 col-6">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Average Price</h6>
+                        <h2 class="card-title mb-1">@stats.TotalCost</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HIGHLIGHTS -->
+        <div class="row g-3 mb-4">
+            @if (stats.MostPlayed is not null)
+            {
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrEmpty(stats.MostPlayed.BackgroundImage))
+                        {
+                            <img src="@stats.MostPlayed.BackgroundImage" class="card-img-top"
+                                 style="height: 140px; object-fit: cover;" alt="" />
+                        }
+                        <div class="card-body">
+                            <span class="badge bg-primary mb-2">Most Played</span>
+                            <h6 class="card-title">@stats.MostPlayed.Name</h6>
+                            <p class="card-text text-muted mb-0">
+                                @stats.MostPlayed.PlaytimeHours hours
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (stats.HighestRatedUnplayed is not null)
+            {
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrEmpty(stats.HighestRatedUnplayed.BackgroundImage))
+                        {
+                            <img src="@stats.HighestRatedUnplayed.BackgroundImage" class="card-img-top"
+                                 style="height: 140px; object-fit: cover;" alt="" />
+                        }
+                        <div class="card-body">
+                            <span class="badge bg-success mb-2">Top Hidden Gem</span>
+                            <h6 class="card-title">@stats.HighestRatedUnplayed.Name</h6>
+                            <p class="card-text text-muted mb-0">
+                                Rated @stats.HighestRatedUnplayed.RawgRating?.ToString("F1") / 5
+                                @if (stats.HighestRatedUnplayed.Metacritic.HasValue)
+                                {
+                                    <span> | Metacritic @stats.HighestRatedUnplayed.Metacritic</span>
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (stats.BiggestShame is not null && stats.BiggestShame != stats.HighestRatedUnplayed)
+            {
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        @if (!string.IsNullOrEmpty(stats.BiggestShame.BackgroundImage))
+                        {
+                            <img src="@stats.BiggestShame.BackgroundImage" class="card-img-top"
+                                 style="height: 140px; object-fit: cover;" alt="" />
+                        }
+                        <div class="card-body">
+                            <span class="badge bg-danger mb-2">Biggest Shame</span>
+                            <h6 class="card-title">@stats.BiggestShame.Name</h6>
+                            <p class="card-text text-muted mb-0">
+                                Metacritic @stats.BiggestShame.Metacritic — never launched!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(stats.MostPlayedGenre))
+            {
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <span class="badge mb-2" style="background-color: #6f42c1;">Favorite Genre</span>
+                            <h4 class="card-title mt-2">@stats.MostPlayedGenre</h4>
+                            <p class="card-text text-muted mb-0">
+                                @stats.MostPlayedGenreHours hours across all games
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- FILTER + TABLE -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Full Analysis</h5>
+                <select class="form-select form-select-sm" style="width: auto;" @onchange="OnFilterChanged">
+                    <option value="all">All games</option>
+                    <option value="favorites">All-time favorites</option>
+                    <option value="frequently-played">Frequently Played</option>
+                </select>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 90px;"></th>
+                                <th>Game</th>
+                                <th>Your Playtime</th>
+                                <th>Avg Playtime</th>
+                                <th>Rating</th>
+                                <th>Metacritic</th>
+                                <th>Value Score</th>
+                                <th>Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var game in filteredGames)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(game.BackgroundImage))
+                                        {
+                                            <img src="@game.BackgroundImage" alt="" class="rounded"
+                                                 style="width: 80px; height: 45px; object-fit: cover;" />
+                                        }
+                                        else if (!string.IsNullOrEmpty(game.IconUrl))
+                                        {
+                                            <img src="@game.IconUrl" alt="" width="32" height="32" />
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@game.Name</strong>
+                                        @if (game.Genres.Any())
+                                        {
+                                            <br />
+                                            <small class="text-muted">
+                                                @string.Join(", ", game.Genres)
+                                            </small>
+                                        }
+                                    </td>
+                                    <td>@game.PlaytimeHours h</td>
+                                    <td>
+                                        @(game.AveragePlaytime.HasValue ? $"{game.AveragePlaytime} h" : "—")
+                                    </td>
+                                    <td>
+                                        @(game.RawgRating.HasValue ? $"{game.RawgRating:F1} / 5" : "—")
+                                    </td>
+                                    <td>
+                                        @(game.Metacritic.HasValue ? $"{game.Metacritic}" : "—")
+                                    </td>
+                                    <td>
+                                        @if (game.ValueScore.HasValue)
+                                        {
+                                            <span class="badge @ScoreBadge(game.ValueScore.Value)">
+                                                @game.ValueScore
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="@RecommendationClass(game.Recommendation)">
+                                            @game.Recommendation
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAuthenticated;
+    private bool isLoading = true;
+    private string? error;
+    private List<MashupGame> games = new();
+    private LibraryStats stats = new();
+    private string currentFilter = "all";
+
+    private List<MashupGame> filteredGames => currentFilter switch
+    {
+        "frequently-played" => games.Where(g =>
+            g.PlaytimeHours > 40).ToList(),
+        "favorites" => games.Where(g =>
+            g.PlaytimeHours > 50 && g.RawgRating > 4.0).ToList(),
+        _ => games
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            isAuthenticated = false;
+            isLoading = false;
+            return;
+        }
+
+        isAuthenticated = true;
+
+        try
+        {
+            var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var steamId = claim?.Value?.Split('/').Last();
+
+            if (string.IsNullOrEmpty(steamId))
+            {
+                error = "Could not determine your Steam ID.";
+                return;
+            }
+
+            games = await Mashup.GetAnalyzedLibraryAsync(steamId);
+            stats = Mashup.CalculateStats(games);
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to analyze library: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnFilterChanged(ChangeEventArgs e)
+    {
+        currentFilter = e.Value?.ToString() ?? "all";
+    }
+
+    private string ScoreBadge(double score) => score switch
+    {
+        > 70 => "bg-success",
+        > 50 => "bg-warning text-dark",
+        > 30 => "bg-secondary",
+        _ => "bg-danger"
+    };
+
+    private string RecommendationClass(string rec) => rec switch
+    {
+        var r when r.Contains("Hidden gem") => "text-success fw-bold",
+        var r when r.Contains("Underplayed") => "text-primary",
+        var r when r.Contains("favorite") => "fw-bold",
+        var r when r.Contains("skip") => "text-danger",
+        _ => "text-muted"
+    };
+}

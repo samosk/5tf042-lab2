@@ -1,0 +1,36 @@
+@page "/rawg-test"
+@using YourApp.Models
+@rendermode InteractiveServer
+@inject RawgService Rawg
+
+<h3>RAWG API Test</h3>
+
+<input @bind="query" placeholder="Search a game..." />
+<button @onclick="Search">Search</button>
+
+@if (games is not null)
+{
+    <p>Found @games.Count total results, showing @games.Results.Count</p>
+    <ul>
+        @foreach (var game in games.Results)
+        {
+            <li>
+                <strong>@game.Name</strong>
+                — rating: @game.Rating / 5
+                @if (game.Metacritic.HasValue) { <span> | metacritic: @game.Metacritic</span> }
+                | playtime: @game.Playtime h
+                | genres: @string.Join(", ", game.Genres.Select(g => g.Name))
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private string query = "";
+    private RawgSearchResponse? games;
+
+    private async Task Search()
+    {
+        games = await Rawg.SearchGamesAsync(query);
+    }
+}

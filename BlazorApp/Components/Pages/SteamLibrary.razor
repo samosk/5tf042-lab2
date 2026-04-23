@@ -1,0 +1,133 @@
+@page "/steam-test"
+@using Microsoft.AspNetCore.Components.Authorization
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthState
+@inject SteamService Steam
+
+<h3>My Steam Library</h3>
+
+@if (!isAuthenticated)
+{
+    <p>You need to sign in with Steam to view your library.</p>
+    <a href="/auth/login">Sign in with Steam</a>
+}
+else if (isLoading)
+{
+    <p>Loading your games...</p>
+}
+else if (error is not null)
+{
+    <p style="color:red;">@error</p>
+}
+else
+{
+    <p>You own <strong>@games.Count</strong> games | Total playtime: <strong>@totalHours</strong> hours</p>
+
+    <div style="margin-bottom: 1rem;">
+        <label>Sort by: </label>
+        <select @onchange="OnSortChanged">
+            <option value="playtime">Most played</option>
+            <option value="name">Name (A-Z)</option>
+            <option value="unplayed">Unplayed first</option>
+        </select>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th></th>
+                <th>Game</th>
+                <th>Playtime</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var game in sortedGames)
+            {
+                <tr>
+                    <td>
+                        @if (!string.IsNullOrEmpty(game.IconFullUrl))
+                        {
+                            <img src="@game.IconFullUrl" alt="@game.Name" width="32" height="32" />
+                        }
+                    </td>
+                    <td>@game.Name</td>
+                    <td>@game.PlaytimeHours h</td>
+                    <td>
+                        @if (game.PlaytimeForever == 0)
+                        {
+                            <span style="color: orange;">Never played</span>
+                        }
+                        else if (game.PlaytimeHours < 2)
+                        {
+                            <span style="color: #888;">Barely touched</span>
+                        }
+                        else
+                        {
+                            <span style="color: green;">Played</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool isAuthenticated;
+    private bool isLoading = true;
+    private string? error;
+    private List<SteamGame> games = new();
+    private string currentSort = "playtime";
+
+    private double totalHours => Math.Round(games.Sum(g => g.PlaytimeForever) / 60.0, 1);
+
+    private List<SteamGame> sortedGames => currentSort switch
+    {
+        "name" => games.OrderBy(g => g.Name).ToList(),
+        "unplayed" => games.OrderBy(g => g.PlaytimeForever).ToList(),
+        _ => games.OrderByDescending(g => g.PlaytimeForever).ToList()
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            isAuthenticated = false;
+            isLoading = false;
+            return;
+        }
+
+        isAuthenticated = true;
+
+        try
+        {
+            var claim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var steamId = claim?.Value?.Split('/').Last();
+
+            if (string.IsNullOrEmpty(steamId))
+            {
+                error = "Could not determine your Steam ID.";
+                return;
+            }
+
+            games = await Steam.GetOwnedGamesAsync(steamId);
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load games: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnSortChanged(ChangeEventArgs e)
+    {
+        currentSort = e.Value?.ToString() ?? "playtime";
+    }
+}
