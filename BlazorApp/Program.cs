@@ -29,6 +29,11 @@ builder.Services.AddHttpClient("Steam", client =>
     client.BaseAddress = new Uri("https://api.steampowered.com/");
 });
 
+builder.Services.AddHttpClient("SteamStore", client =>
+{
+    client.BaseAddress = new Uri("https://store.steampowered.com/api/");
+});
+
 builder.Services.AddScoped<SteamService>();
 builder.Services.AddScoped<MashupService>();
 builder.Services.AddCascadingAuthenticationState();

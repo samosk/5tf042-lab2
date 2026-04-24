@@ -14,4 +14,8 @@ public class LibraryStats
     public MashupGame? HighestRatedUnplayed { get; set; }
     public MashupGame? MostPlayed { get; set; }
     public MashupGame? BiggestShame { get; set; } // high rated, zero playtime
+    public double TotalLibraryValue { get; set; }
+    public double AverageGamePrice { get; set; }
+    public string Currency { get; set; } = "";
+    public int GamesWithPriceData { get; set; }
 }

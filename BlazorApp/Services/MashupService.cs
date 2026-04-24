@@ -17,7 +17,7 @@ public class MashupService
 
         var gamesToAnalyze = steamGames
             .OrderByDescending(g => g.PlaytimeForever)
-            .Take(25)
+            .Take(100)
             .ToList();
 
         var results = new List<MashupGame>();
@@ -64,6 +64,19 @@ public class MashupService
 
             var batchResults = await Task.WhenAll(tasks);
             results.AddRange(batchResults);
+        }
+        var appIds = results.Select(g => g.SteamAppId).ToList();
+        var prices = await _steam.GetPricesAsync(appIds);
+
+        foreach (var game in results)
+        {
+            if (prices.TryGetValue(game.SteamAppId, out var price))
+            {
+                game.CurrentPrice = price.FinalPrice;
+                game.Currency = price.Currency;
+                game.DiscountPercent = price.DiscountPercent;
+                game.IsFreeToPlay = price.IsFreeToPlay;
+            }
         }
 
         return results.OrderByDescending(g => g.ValueScore ?? 0).ToList();
@@ -199,7 +212,16 @@ public class MashupService
             stats.MostPlayedGenre = genreGroups.Genre;
             stats.MostPlayedGenreHours = genreGroups.TotalHours;
         }
+        var gamesWithPrice = games.Where(g => g.CurrentPrice.HasValue && !g.IsFreeToPlay && g.CurrentPrice > 0).ToList();
 
+        stats.GamesWithPriceData = gamesWithPrice.Count;
+
+        if (gamesWithPrice.Any())
+        {
+            stats.TotalLibraryValue = Math.Round(gamesWithPrice.Sum(g => g.CurrentPrice!.Value), 2);
+            stats.AverageGamePrice = Math.Round(gamesWithPrice.Average(g => g.CurrentPrice!.Value), 2);
+            stats.Currency = gamesWithPrice.First().Currency ?? "SEK";
+        }
         return stats;
     }
 }

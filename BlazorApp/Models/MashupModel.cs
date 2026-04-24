@@ -18,4 +18,8 @@ public class MashupGame
     // Mashup logic — the "new thing" you're creating
     public double? ValueScore { get; set; }
     public string Recommendation { get; set; } = "";
+    public double? CurrentPrice { get; set; }
+    public string? Currency { get; set; }
+    public int? DiscountPercent { get; set; }
+    public bool IsFreeToPlay { get; set; }
 }

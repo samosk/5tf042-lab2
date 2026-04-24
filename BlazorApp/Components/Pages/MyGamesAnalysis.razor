@@ -61,11 +61,21 @@
                     </div>
                 </div>
             </div>
-                        <div class="col-md-3 col-6">
+            <div class="col-md-3 col-6">
                 <div class="card text-center h-100">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">Average Price</h6>
-                        <h2 class="card-title mb-1">@stats.TotalCost</h2>
+                        <h6 class="card-subtitle mb-2 text-muted">Library Value</h6>
+                        <h2 class="card-title mb-1">@stats.TotalLibraryValue</h2>
+                        <small class="text-muted">@stats.Currency (current prices)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Avg Game Price</h6>
+                        <h2 class="card-title mb-1">@stats.AverageGamePrice</h2>
+                        <small class="text-muted">@stats.Currency across @stats.GamesWithPriceData games</small>
                     </div>
                 </div>
             </div>
@@ -136,9 +146,11 @@
                     </div>
                 </div>
             }
+        </div>
 
-            @if (!string.IsNullOrEmpty(stats.MostPlayedGenre))
-            {
+        @if (!string.IsNullOrEmpty(stats.MostPlayedGenre))
+        {
+            <div class="row g-3 mb-4 justify-content-center">
                 <div class="col-md-4">
                     <div class="card h-100">
                         <div class="card-body text-center">
@@ -150,8 +162,8 @@
                         </div>
                     </div>
                 </div>
-            }
-        </div>
+            </div>
+        }
 
         <!-- FILTER + TABLE -->
         <div class="card">
@@ -174,6 +186,7 @@
                                 <th>Avg Playtime</th>
                                 <th>Rating</th>
                                 <th>Metacritic</th>
+                                <th>Price</th>
                                 <th>Value Score</th>
                                 <th>Recommendation</th>
                             </tr>
@@ -212,6 +225,27 @@
                                     </td>
                                     <td>
                                         @(game.Metacritic.HasValue ? $"{game.Metacritic}" : "—")
+                                    </td>
+                                    <td>
+                                        @if (game.IsFreeToPlay)
+                                        {
+                                            <span class="badge bg-info text-dark">Free to Play</span>
+                                        }
+                                        else if (game.CurrentPrice.HasValue)
+                                        {
+                                            <span>
+                                                @game.CurrentPrice.Value.ToString("F2") @game.Currency
+                                                @if (game.DiscountPercent.HasValue && game.DiscountPercent > 0)
+                                                {
+                                                    <br />
+                                                    <small class="text-success fw-bold">-@game.DiscountPercent%</small>
+                                                }
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
                                     </td>
                                     <td>
                                         @if (game.ValueScore.HasValue)
